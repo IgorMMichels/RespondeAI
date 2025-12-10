@@ -3,7 +3,7 @@ import Header from './components/Header';
 import ToneSelector from './components/ToneSelector';
 import ReviewInput from './components/ReviewInput';
 import ResponseOutput from './components/ResponseOutput';
-import AuthModal from './components/AuthModal';
+import AdOverlay from './components/AdOverlay'; // Import new Ad component
 import { ResponseTone } from './types';
 import { generateReviewResponse } from './services/geminiService';
 import { Wand2, AlertCircle } from 'lucide-react';
@@ -15,18 +15,25 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Monetization State
-  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  // Ad State
+  const [showAd, setShowAd] = useState(false);
 
-  const handleGenerate = async () => {
+  // 1. User clicks Generate
+  const handleGenerateClick = () => {
     if (!reviewText.trim()) {
       setError("Por favor, insira uma avaliação do cliente primeiro.");
       return;
     }
-
-    setIsLoading(true);
     setError(null);
+    
+    // Trigger Ad before generating
+    setShowAd(true);
+  };
+
+  // 2. Ad is finished (or skipped) -> Run AI
+  const handleAdComplete = async () => {
+    setShowAd(false); // Close Ad
+    setIsLoading(true); // Start loading UI
     setGeneratedResponse(null);
 
     try {
@@ -42,27 +49,9 @@ const App: React.FC = () => {
     }
   };
 
-  const handleCopyAttempt = (textToCopy: string) => {
-    setShowAuthModal(true);
-  };
-
-  const handleAuthSuccess = () => {
-    setIsUserLoggedIn(true);
-    setShowAuthModal(false);
-    
-    // Auto-copy logic after unlocking
-    if (generatedResponse) {
-      navigator.clipboard.writeText(generatedResponse).catch(err => console.error("Auto-copy failed", err));
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <Header 
-        isLoggedIn={isUserLoggedIn}
-        onLogin={() => setShowAuthModal(true)}
-        onTrial={() => setShowAuthModal(true)}
-      />
+      <Header />
       
       <main className="flex-grow container mx-auto px-4 py-8 md:py-12 max-w-3xl">
         <div className="flex flex-col gap-8">
@@ -98,7 +87,7 @@ const App: React.FC = () => {
             )}
 
             <button
-              onClick={handleGenerate}
+              onClick={handleGenerateClick}
               disabled={isLoading || !reviewText.trim()}
               className={`
                 w-full py-4 rounded-xl flex items-center justify-center space-x-2 font-semibold text-lg transition-all transform
@@ -110,6 +99,9 @@ const App: React.FC = () => {
               <Wand2 className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
               <span>{isLoading ? 'Gerando...' : 'Gerar Resposta'}</span>
             </button>
+            <p className="text-xs text-center text-slate-400">
+              Ao clicar em gerar, um breve anúncio de vídeo será exibido para manter a plataforma gratuita.
+            </p>
           </div>
 
           {/* Output Area - Always Below */}
@@ -119,8 +111,6 @@ const App: React.FC = () => {
                 <ResponseOutput 
                   response={generatedResponse} 
                   loading={isLoading} 
-                  isUnlocked={isUserLoggedIn}
-                  onCopyAttempt={handleCopyAttempt}
                 />
               </div>
             </div>
@@ -150,7 +140,7 @@ const App: React.FC = () => {
 
       <footer className="bg-white border-t border-slate-200 py-8 mt-12">
         <div className="container mx-auto px-4 text-center">
-          <p className="text-slate-500 text-sm">© {new Date().getFullYear()} Responde AI. Todos os direitos reservados.</p>
+          <p className="text-slate-500 text-sm">© {new Date().getFullYear()} Responde AI. 100% Gratuito.</p>
           <div className="flex justify-center gap-4 mt-4 text-xs text-slate-400">
             <a href="#" className="hover:text-slate-600">Termos de Uso</a>
             <a href="#" className="hover:text-slate-600">Privacidade</a>
@@ -159,10 +149,10 @@ const App: React.FC = () => {
         </div>
       </footer>
 
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={handleAuthSuccess}
+      {/* Ad Component */}
+      <AdOverlay 
+        isOpen={showAd} 
+        onAdComplete={handleAdComplete} 
       />
     </div>
   );
